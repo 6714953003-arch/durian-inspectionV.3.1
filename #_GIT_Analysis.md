@@ -35,7 +35,7 @@ git config --global init.defaultBranch main
 
 ```bash
 # สร้าง SSH key
-ssh-keygen -t ed25519 -C "your_email@example.com"
+ssh-keygen -t ed25519 -C "sanfong0010@gmail.com"
 
 # ตรวจสอบไฟล์ SSH ที่มีอยู่
 ls -al ~/.ssh
@@ -75,6 +75,7 @@ ssh -T git@github.com
    - git fetch / git pull
 
 5. การสร้าง repository ใหม่และ push ไป GitHub
+   - git remote remove origin
    - init repository
    - add remote origin
    - push ขึ้น GitHub
