@@ -1,0 +1,9 @@
+# Ignore local MQTT config
+mqtt_local.py
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Environment
+.env

@@ -38,6 +38,12 @@
         <p id="mode-status" class="text-3xl font-semibold mt-3 text-indigo-600">อัตโนมัติ</p>
       </div>
 
+      <!-- MQTT Connection -->
+      <div class="bg-white rounded-3xl shadow-lg p-6">
+        <p class="text-gray-500 text-sm">สถานะ MQTT</p>
+        <p id="mqtt-status" class="text-3xl font-semibold mt-3 text-gray-600">กำลังตรวจสอบ...</p>
+      </div>
+
       <!-- Avg Soil -->
       <div class="bg-white rounded-3xl shadow-lg p-6">
         <p class="text-gray-500 text-sm">ความชื้นดินเฉลี่ย</p>
@@ -96,12 +102,23 @@
       const data = await res.json();
 
       // Update Pump Status
-      document.getElementById('pump-status').textContent = data.pump_state ? 'เปิดอยู่' : 'ปิดอยู่';
-      document.getElementById('pump-status').className = data.pump_state ? 
+      const isPumpOn = String(data.pump_state).toUpperCase() === 'ON' || data.pump_state === true;
+      document.getElementById('pump-status').textContent = isPumpOn ? 'เปิดอยู่' : 'ปิดอยู่';
+      document.getElementById('pump-status').className = isPumpOn ? 
         'text-4xl font-bold mt-2 text-green-600' : 'text-4xl font-bold mt-2 text-red-600';
 
-      document.getElementById('mode-status').textContent = data.auto_mode ? 'อัตโนมัติ' : 'มือ';
+      const isAutoMode = String(data.auto_mode).toUpperCase() === 'AUTO' || data.auto_mode === true;
+      document.getElementById('mode-status').textContent = isAutoMode ? 'อัตโนมัติ' : 'มือ';
       document.getElementById('timestamp').textContent = data.timestamp || 'กำลังอัพเดท...';
+
+      const mqttStatus = document.getElementById('mqtt-status');
+      if (data.mqtt_connected) {
+        mqttStatus.textContent = 'เชื่อมต่อแล้ว';
+        mqttStatus.className = 'text-3xl font-semibold mt-3 text-emerald-600';
+      } else {
+        mqttStatus.textContent = 'ไม่เชื่อมต่อ';
+        mqttStatus.className = 'text-3xl font-semibold mt-3 text-red-600';
+      }
 
       // Soil Moisture Grid
       const grid = document.getElementById('soil-grid');

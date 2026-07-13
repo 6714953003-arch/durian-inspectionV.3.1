@@ -5,23 +5,32 @@ from mqtt_handler import MQTTHandler
 app = FastAPI(title="IoT Water Pump System")
 mqtt_handler = MQTTHandler()
 
-# เชื่อมต่อ MQTT ด้วยค่าจาก environment variable หากมี
-mqtt_broker = "localhost"
-mqtt_port = 1883
-mqtt_user = None
-mqtt_pass = None
-
 import os
-if os.getenv("MQTT_BROKER"):
-    mqtt_broker = os.getenv("MQTT_BROKER")
-if os.getenv("MQTT_PORT"):
-    try:
-        mqtt_port = int(os.getenv("MQTT_PORT"))
-    except ValueError:
-        mqtt_port = 1883
-if os.getenv("MQTT_USER") and os.getenv("MQTT_PASS"):
-    mqtt_user = os.getenv("MQTT_USER")
-    mqtt_pass = os.getenv("MQTT_PASS")
+mqtt_broker = os.getenv("MQTT_BROKER", "localhost")
+try:
+    mqtt_port = int(os.getenv("MQTT_PORT", "1883"))
+except ValueError:
+    mqtt_port = 1883
+mqtt_user = os.getenv("MQTT_USER")
+mqtt_pass = os.getenv("MQTT_PASS")
+
+try:
+    # Prefer local file if present
+    import mqtt_local
+    mqtt_broker = getattr(mqtt_local, "MQTT_BROKER", mqtt_broker)
+    mqtt_port = getattr(mqtt_local, "MQTT_PORT", mqtt_port)
+    mqtt_user = getattr(mqtt_local, "MQTT_USER", mqtt_user)
+    mqtt_pass = getattr(mqtt_local, "MQTT_PASS", mqtt_pass)
+    # If mqtt_local exposes an apply_to(handler) helper, call it
+    if hasattr(mqtt_local, "apply_to"):
+        try:
+            mqtt_local.apply_to(mqtt_handler)
+        except Exception:
+            pass
+except Exception:
+    pass
+
+if mqtt_user and mqtt_pass:
     mqtt_handler.set_credentials(mqtt_user, mqtt_pass)
 
 print(f"Connecting MQTT broker={mqtt_broker} port={mqtt_port} user={mqtt_user}")
