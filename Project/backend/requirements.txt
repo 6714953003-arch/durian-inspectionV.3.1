@@ -1,0 +1,5 @@
+# Placeholder: Backend Python dependencies
+# fastapi
+# sqlalchemy
+# pydantic
+# uvicorn
