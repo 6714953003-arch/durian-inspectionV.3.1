@@ -13,7 +13,8 @@ from app.config import JWT_EXPIRE_MINUTES, JWT_SECRET
 from app.database import SessionLocal
 from app.models import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use plaintext for development/testing, can be switched to bcrypt for production
+pwd_context = CryptContext(schemes=["plaintext"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
 
 

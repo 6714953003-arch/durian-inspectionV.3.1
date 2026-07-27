@@ -2,11 +2,17 @@ import os
 
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("DB_URL", "sqlite+aiosqlite:///./test_sensorhub.db")
+os.environ.setdefault("DB_URL", "sqlite:///./test_sensorhub.db")
 os.environ.setdefault("JWT_SECRET", "test-secret-value-for-ci")
 os.environ.setdefault("DEFAULT_ADMIN_PASSWORD", "Admin@1234")
 
+from app.database import init_db
 from app.main import app
+from app.seed import seed_database
+
+# Initialize database before creating test client
+init_db()
+seed_database()
 
 client = TestClient(app)
 
@@ -27,8 +33,8 @@ def test_login_and_dashboard_auth():
     )
     assert dashboard.status_code == 200
     payload = dashboard.json()
-    assert payload["tree_count"] >= 1
-    assert payload["zone_count"] >= 1
+    assert payload["treeCount"] >= 1
+    assert payload["zoneCount"] >= 1
 
 
 def test_dashboard_requires_auth():
