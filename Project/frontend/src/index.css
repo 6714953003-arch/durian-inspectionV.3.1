@@ -61,3 +61,21 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
 }
+
+:root[data-theme='light'] {
+  --background: #f4f6fa;
+  --foreground: #0f1724;
+  --card: #ffffff;
+  --card-foreground: #0f1724;
+  --primary: #00c9a7;
+  --primary-foreground: #062a24;
+  --secondary: #e9eef5;
+  --secondary-foreground: #475569;
+  --muted: #eef2f7;
+  --muted-foreground: #64748b;
+  --accent: #f59e0b;
+  --accent-foreground: #1c1207;
+  --border: #d7dfea;
+  --ring: #00c9a7;
+  --radius: 0.75rem;
+}

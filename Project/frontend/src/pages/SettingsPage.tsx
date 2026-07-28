@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import { getSavedTheme, saveTheme, type ThemeMode } from '../theme'
 
-type ThemeMode = 'dark' | 'light'
 type Language = 'th' | 'en'
 type RefreshRate = '3' | '5' | '10' | '30'
 
@@ -9,7 +9,7 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ onLogout }: SettingsPageProps) {
-  const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getSavedTheme)
   const [language, setLanguage] = useState<Language>('th')
   const [refreshRate, setRefreshRate] = useState<RefreshRate>('5')
   const [alertSound, setAlertSound] = useState(true)
@@ -21,6 +21,7 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
   const [saved, setSaved] = useState(false)
 
   const handleSave = () => {
+    saveTheme(themeMode)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
