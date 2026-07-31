@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ApiError, login as apiLogin } from '../api'
 
 interface LoginPageProps {
   onLogin: () => void
@@ -10,7 +11,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!username || !password) {
@@ -18,10 +19,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       return
     }
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
+    try {
+      await apiLogin(username, password)
       onLogin()
-    }, 800)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
