@@ -168,3 +168,139 @@ export async function exportLoginHistory(): Promise<void> {
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
+
+export interface SystemSettings {
+  theme_mode: string
+  language: string
+  refresh_rate_s: number
+  alert_sound: boolean
+  email_alert: boolean
+}
+
+export async function fetchSettings(): Promise<SystemSettings> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/settings`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`โหลดการตั้งค่าไม่สำเร็จ (รหัส ${res.status})`)
+  }
+  return (await res.json()) as SystemSettings
+}
+
+export async function saveSettings(payload: SystemSettings): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`บันทึกการตั้งค่าไม่สำเร็จ (รหัส ${res.status})`)
+  }
+}
+
+export interface AlertItem {
+  id: number
+  treeId: number | null
+  zoneId: number | null
+  type: 'critical' | 'warning' | 'info'
+  message: string
+  isRead: boolean
+  createdAt: string
+}
+
+export async function fetchAlerts(): Promise<AlertItem[]> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/alerts`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
+  }
+  if (!res.ok) throw new ApiError(`โหลดการแจ้งเตือนไม่สำเร็จ (รหัส ${res.status})`)
+  return (await res.json()) as AlertItem[]
+}
+
+export async function markAlertRead(id: number): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/alerts/${id}/read`, { method: 'POST', headers: authHeaders() })
+  } catch { /* ไม่สำเร็จก็ไม่ขัดจังหวะผู้ใช้ */ }
+}
+
+export async function markAllAlertsRead(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/alerts/read-all`, { method: 'POST', headers: authHeaders() })
+  } catch { /* ไม่สำเร็จก็ไม่ขัดจังหวะผู้ใช้ */ }
+}
+
+export interface TreeSummary {
+  id: number
+  name: string
+  zoneId: number
+  temperature: number
+  humidity: number
+  light: number
+  tempStatus: 'normal' | 'warning' | 'critical'
+  humidStatus: 'normal' | 'warning' | 'critical'
+  lightStatus: string
+  online: boolean
+  pumpOn: boolean
+  pumpMode: 'on' | 'off' | 'auto'
+  lastUpdated: string
+}
+
+export interface ZoneSummary {
+  id: number
+  name: string
+  trees: TreeSummary[]
+}
+
+export interface DashboardSummary {
+  treeCount: number
+  zoneCount: number
+  tempMin: number
+  tempMax: number
+  tempAvg: number
+  humidMin: number
+  humidMax: number
+  humidAvg: number
+  lightMin: number
+  lightMax: number
+  lightAvg: number
+}
+
+export async function fetchZones(): Promise<ZoneSummary[]> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/zones`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`โหลดข้อมูลโซนไม่สำเร็จ (รหัส ${res.status})`)
+  }
+  return (await res.json()) as ZoneSummary[]
+}
+
+export async function fetchDashboardSummary(): Promise<DashboardSummary> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/dashboard/summary`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`โหลดภาพรวมไม่สำเร็จ (รหัส ${res.status})`)
+  }
+  return (await res.json()) as DashboardSummary
+}

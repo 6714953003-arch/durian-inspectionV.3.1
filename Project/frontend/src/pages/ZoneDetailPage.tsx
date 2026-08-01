@@ -20,7 +20,7 @@ export function ZoneDetailPage({ zoneId, onBack }: ZoneDetailPageProps) {
 
   const [chartData] = useState(() => generateChartData(tree.temperature, tree.humidity))
   const [dailyData] = useState(() => generateDailyData(tree.temperature, tree.humidity, 10))
-  const [pumpMode, setPumpMode] = useState<PumpMode>(tree.pumpMode as PumpMode)
+  const [pumpMode] = useState<PumpMode>(tree.pumpMode as PumpMode)
   const [activeTab, setActiveTab] = useState<ChartTab>('temperature')
   const [viewMode, setViewMode] = useState<ViewMode>('live')
   const [liveTemp, setLiveTemp] = useState(tree.temperature)
@@ -29,7 +29,6 @@ export function ZoneDetailPage({ zoneId, onBack }: ZoneDetailPageProps) {
   useEffect(() => {
     setLiveTemp(tree.temperature)
     setLiveHumid(tree.humidity)
-    setPumpMode(tree.pumpMode as PumpMode)
   }, [tree])
 
   useEffect(() => {
@@ -47,14 +46,6 @@ export function ZoneDetailPage({ zoneId, onBack }: ZoneDetailPageProps) {
   const cfg = chartConfig[activeTab]
 
   const statusColor: Record<string, string> = { normal: '#00c9a7', warning: '#f59e0b', critical: '#ef4444' }
-  const pumpBtnStyle = (mode: PumpMode) => ({
-    backgroundColor: pumpMode === mode
-      ? mode === 'on' ? '#00c9a7' : mode === 'off' ? '#ef4444' : '#f59e0b'
-      : 'var(--muted)',
-    color: pumpMode === mode ? '#fff' : 'var(--muted-foreground)',
-    opacity: pumpMode === mode ? 1 : 0.55,
-  })
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -163,14 +154,9 @@ export function ZoneDetailPage({ zoneId, onBack }: ZoneDetailPageProps) {
                 {pumpMode === 'on' ? 'กำลังทำงาน' : pumpMode === 'auto' ? 'โหมดอัตโนมัติ' : 'หยุดทำงาน'}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(['on', 'off', 'auto'] as PumpMode[]).map((mode) => (
-                <button key={mode} onClick={() => setPumpMode(mode)} className="py-2 rounded-lg text-xs font-semibold transition-all" style={pumpBtnStyle(mode)}>
-                  {mode === 'on' ? 'เปิด' : mode === 'off' ? 'ปิด' : 'Auto'}
-                </button>
-              ))}
-            </div>
-            {pumpMode === 'auto' && <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>ระบบจะเปิด/ปิดปั๊มอัตโนมัติตามค่าความชื้น</p>}
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              ปั๊มน้ำมี 1 ตัว ใช้ร่วมกันทุกโซน — ควบคุมได้ที่หน้า Zone List
+            </p>
           </div>
 
           <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--secondary)', borderColor: 'var(--border)' }}>

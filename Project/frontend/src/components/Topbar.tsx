@@ -1,22 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-
-interface Alert {
-  id: number
-  type: 'critical' | 'warning' | 'info'
-  zone: string
-  tree: string
-  message: string
-  time: string
-  read: boolean
-}
-
-const systemAlerts: Alert[] = [
-  { id: 1, type: 'critical', zone: 'Zone 3', tree: 'ต้นที่ 7', message: 'อุณหภูมิสูงเกิน 36.8°C (เกณฑ์สูงสุด 32°C)', time: '5 นาทีที่แล้ว', read: false },
-  { id: 2, type: 'critical', zone: 'Zone 3', tree: 'ต้นที่ 7', message: 'ความชื้นสูงเกิน 85%RH (เกณฑ์สูงสุด 80%)', time: '5 นาทีที่แล้ว', read: false },
-  { id: 3, type: 'warning', zone: 'Zone 1', tree: 'ต้นที่ 3', message: 'ความชื้นสูงกว่าเกณฑ์ 75%RH', time: '12 นาทีที่แล้ว', read: false },
-  { id: 4, type: 'warning', zone: 'Zone 2', tree: 'ต้นที่ 5', message: 'อุณหภูมิสูงกว่าเกณฑ์ 33.5°C', time: '18 นาทีที่แล้ว', read: true },
-  { id: 5, type: 'info', zone: 'Zone 1', tree: 'ต้นที่ 1', message: 'ระบบ Pump ทำงานอัตโนมัติ — เปิดปั๊ม', time: '25 นาทีที่แล้ว', read: true },
-]
+import { fetchAlerts, markAlertRead, markAllAlertsRead, type AlertItem } from '../api'
 
 const alertColor = { critical: '#ef4444', warning: '#f59e0b', info: '#38bdf8' }
 const alertBg = { critical: '#ef444420', warning: '#f59e0b20', info: '#38bdf820' }
@@ -27,11 +10,19 @@ interface TopbarProps {
 }
 
 export function Topbar({ onLogout }: TopbarProps) {
-  const [alerts, setAlerts] = useState<Alert[]>(systemAlerts)
+  const [alerts, setAlerts] = useState<AlertItem[]>([])
+
+  useEffect(() => {
+    let active = true
+    fetchAlerts()
+      .then((rows) => { if (active) setAlerts(rows) })
+      .catch(() => { /* โหลดไม่ได้ก็แสดงว่าไม่มีแจ้งเตือน */ })
+    return () => { active = false }
+  }, [])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const unread = alerts.filter((a) => !a.read).length
+  const unread = alerts.filter((a) => !a.isRead).length
 
   const now = new Date()
   const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
@@ -45,7 +36,10 @@ export function Topbar({ onLogout }: TopbarProps) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const markAllRead = () => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))
+  const markAllRead = () => {
+    setAlerts((prev) => prev.map((a) => ({ ...a, isRead: true })))
+    void markAllAlertsRead()
+  }
 
   return (
     <header
@@ -109,9 +103,12 @@ export function Topbar({ onLogout }: TopbarProps) {
                     className="px-4 py-3 border-b transition-colors cursor-pointer"
                     style={{
                       borderColor: 'var(--border)',
-                      backgroundColor: alert.read ? 'transparent' : `${alertBg[alert.type]}`,
+                      backgroundColor: alert.isRead ? 'transparent' : `${alertBg[alert.type]}`,
                     }}
-                    onClick={() => setAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, read: true } : a))}
+                    onClick={() => {
+                      setAlerts((prev) => prev.map((a) => a.id === alert.id ? { ...a, isRead: true } : a))
+                      void markAlertRead(alert.id)
+                    }}
                   >
                     <div className="flex items-start gap-3">
                       <span
@@ -122,12 +119,12 @@ export function Topbar({ onLogout }: TopbarProps) {
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
-                          {alert.zone} · {alert.tree}
+                          {alert.zoneId ? `Zone ${alert.zoneId}` : 'ระบบ'}{alert.treeId ? ` · ต้นที่ ${alert.treeId}` : ''}
                         </p>
                         <p className="text-sm mt-0.5" style={{ color: 'var(--foreground)' }}>{alert.message}</p>
-                        <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{alert.time}</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{alert.createdAt}</p>
                       </div>
-                      {!alert.read && (
+                      {!alert.isRead && (
                         <span className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ backgroundColor: alertColor[alert.type] }} />
                       )}
                     </div>
@@ -135,7 +132,7 @@ export function Topbar({ onLogout }: TopbarProps) {
                 ))}
               </div>
 
-              {alerts.every((a) => a.read) && (
+              {alerts.every((a) => a.isRead) && (
                 <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
                   ✓ ไม่มีการแจ้งเตือนใหม่
                 </div>

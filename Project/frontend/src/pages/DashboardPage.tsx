@@ -1,4 +1,5 @@
-import { zones, allTrees, generateTodayStats } from '../data/mockData'
+import { useEffect, useState } from 'react'
+import { ApiError, fetchDashboardSummary, fetchZones, type DashboardSummary, type ZoneSummary } from '../api'
 
 interface DashboardPageProps {
   onSelectZone: (id: number) => void
@@ -16,16 +17,41 @@ const statusLabel: Record<string, string> = {
 }
 
 export function DashboardPage({ onSelectZone }: DashboardPageProps) {
-  const avgTemp = +(allTrees.reduce((s, t) => s + t.temperature, 0) / allTrees.length).toFixed(1)
-  const avgHumid = Math.round(allTrees.reduce((s, t) => s + t.humidity, 0) / allTrees.length)
-  const todayStats = generateTodayStats(avgTemp, avgHumid)
+  const [zones, setZones] = useState<ZoneSummary[] | null>(null)
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    Promise.all([fetchZones(), fetchDashboardSummary()])
+      .then(([z, sm]) => { if (active) { setZones(z); setSummary(sm) } })
+      .catch((err) => { if (active) setError(err instanceof ApiError ? err.message : 'โหลดข้อมูลไม่สำเร็จ') })
+    return () => { active = false }
+  }, [])
+
+  if (error) {
+    return <p className="text-sm" style={{ color: '#ef4444' }}>{error}</p>
+  }
+  if (!zones || !summary) {
+    return <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>กำลังโหลดข้อมูล...</p>
+  }
+
+  const allTrees = zones.flatMap((z) => z.trees)
+  const todayStats = {
+    tempAvg: summary.tempAvg.toFixed(1),
+    tempMin: summary.tempMin.toFixed(1),
+    tempMax: summary.tempMax.toFixed(1),
+    humidAvg: Math.round(summary.humidAvg),
+    humidMin: Math.round(summary.humidMin),
+    humidMax: Math.round(summary.humidMax),
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Dashboard</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-          ภาพรวมสวนทุเรียนวันนี้ — {allTrees.length} ต้น, {zones.length} โซน
+          ภาพรวมสวนทุเรียนวันนี้ — {summary.treeCount} ต้น, {summary.zoneCount} โซน
         </p>
       </div>
 

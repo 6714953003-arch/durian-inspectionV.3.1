@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ApiError, fetchThresholds, saveThresholds } from '../api'
+import { ApiError, fetchSettings, fetchThresholds, saveSettings, saveThresholds } from '../api'
 import { getSavedTheme, saveTheme, type ThemeMode } from '../theme'
 
 type RefreshRate = '3' | '5' | '10' | '30'
@@ -35,6 +35,16 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
       .catch((err) => {
         if (active) setError(err instanceof ApiError ? err.message : 'โหลดค่าเกณฑ์ไม่สำเร็จ')
       })
+
+    fetchSettings()
+      .then((cfg) => {
+        if (!active) return
+        setRefreshRate(String(cfg.refresh_rate_s) as RefreshRate)
+        setAlertSound(cfg.alert_sound)
+        setEmailAlert(cfg.email_alert)
+      })
+      .catch(() => { /* ใช้ค่าเริ่มต้นในหน้าจอไปก่อน */ })
+
     return () => { active = false }
   }, [])
 
@@ -62,6 +72,13 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
         { parameter: 'temperature', min_value: Number(tempMin), max_value: Number(tempMax) },
         { parameter: 'humidity', min_value: Number(humidMin), max_value: Number(humidMax) },
       ])
+      await saveSettings({
+        theme_mode: themeMode,
+        language: 'th',
+        refresh_rate_s: Number(refreshRate),
+        alert_sound: alertSound,
+        email_alert: emailAlert,
+      })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
