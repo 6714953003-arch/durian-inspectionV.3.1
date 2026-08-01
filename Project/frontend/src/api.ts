@@ -70,3 +70,68 @@ export async function login(username: string, password: string): Promise<AuthUse
   } catch {}
   return data.user as AuthUser
 }
+
+export interface LoginRecord {
+  id: number
+  user: string
+  email: string
+  action: 'login' | 'logout'
+  status: 'success' | 'failed'
+  ip: string
+  device: string
+  timestamp: string
+}
+
+/** ดึงประวัติการเข้า-ออกระบบจากฐานข้อมูลจริง */
+export async function fetchLoginHistory(): Promise<LoginRecord[]> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/history/logins`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`โหลดข้อมูลไม่สำเร็จ (รหัส ${res.status})`)
+  }
+  return (await res.json()) as LoginRecord[]
+}
+
+export interface ThresholdItem {
+  parameter: string
+  min_value: number
+  max_value: number
+}
+
+/** อ่านค่าเกณฑ์จากฐานข้อมูล */
+export async function fetchThresholds(): Promise<ThresholdItem[]> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/thresholds`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`โหลดค่าเกณฑ์ไม่สำเร็จ (รหัส ${res.status})`)
+  }
+  return (await res.json()) as ThresholdItem[]
+}
+
+/** บันทึกค่าเกณฑ์ลงฐานข้อมูล — ส่งเฉพาะรายการที่แก้ ตัวอื่นในตารางไม่ถูกแตะ */
+export async function saveThresholds(items: ThresholdItem[]): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/thresholds`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(items),
+    })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`บันทึกค่าเกณฑ์ไม่สำเร็จ (รหัส ${res.status})`)
+  }
+}

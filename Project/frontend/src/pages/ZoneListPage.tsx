@@ -34,8 +34,8 @@ const defaultSchedule: Schedule = {
   days: [1, 2, 3, 4, 5],
 }
 
-function ScheduleModal({ zoneName, schedule, onSave, onClose }: {
-  zoneName: string; schedule: Schedule; onSave: (s: Schedule) => void; onClose: () => void
+function ScheduleModal({ subtitle, schedule, onSave, onClose }: {
+  subtitle: string; schedule: Schedule; onSave: (s: Schedule) => void; onClose: () => void
 }) {
   const [draft, setDraft] = useState<Schedule>({ ...schedule })
 
@@ -52,7 +52,7 @@ function ScheduleModal({ zoneName, schedule, onSave, onClose }: {
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}>
           <div>
             <p className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>ตั้งเวลาปั๊มน้ำ</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{zoneName}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--muted-foreground)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -124,24 +124,27 @@ function ScheduleModal({ zoneName, schedule, onSave, onClose }: {
 }
 
 export function ZoneListPage({ onSelectZone }: ZoneListPageProps) {
-  const [zonePumpModes, setZonePumpModes] = useState<Record<number, PumpMode>>({ 1: 'auto', 2: 'on', 3: 'on' })
-  const [schedules, setSchedules] = useState<Record<number, Schedule>>({
-    1: { ...defaultSchedule },
-    2: { ...defaultSchedule, startTime: '07:00', endTime: '08:30' },
-    3: { ...defaultSchedule, startTime: '06:30', endTime: '07:30', days: [1, 3, 5] },
-  })
-  const [openScheduleFor, setOpenScheduleFor] = useState<number | null>(null)
+  // ปั๊มน้ำตัวเดียว ใช้ร่วมกันทุกโซน
+  const [pumpMode, setPumpMode] = useState<PumpMode>('auto')
+  const [schedule, setSchedule] = useState<Schedule>({ ...defaultSchedule })
+  const [scheduleOpen, setScheduleOpen] = useState(false)
 
-  const setMode = (zoneId: number, mode: PumpMode) => setZonePumpModes((prev) => ({ ...prev, [zoneId]: mode }))
+  const modeBtnStyle = (m: PumpMode) => ({
+    backgroundColor: pumpMode === m ? (m === 'on' ? '#00c9a7' : m === 'off' ? '#ef4444' : m === 'auto' ? '#f59e0b' : '#6366f1') : 'var(--muted)',
+    color: pumpMode === m ? '#fff' : 'var(--muted-foreground)',
+    opacity: pumpMode === m ? 1 : 0.5,
+  })
+  const pumpDotColor = pumpMode === 'on' ? '#00c9a7' : pumpMode === 'auto' ? '#f59e0b' : pumpMode === 'schedule' ? '#6366f1' : 'var(--muted-foreground)'
+  const pumpStatusLabel = pumpMode === 'on' ? 'กำลังทำงาน' : pumpMode === 'auto' ? 'อัตโนมัติ' : pumpMode === 'schedule' ? 'ตั้งเวลาแล้ว' : 'หยุดทำงาน'
 
   return (
     <div className="space-y-6">
-      {openScheduleFor !== null && (
+      {scheduleOpen && (
         <ScheduleModal
-          zoneName={`Zone ${openScheduleFor}`}
-          schedule={schedules[openScheduleFor] || defaultSchedule}
-          onSave={(s) => setSchedules((prev) => ({ ...prev, [openScheduleFor]: s }))}
-          onClose={() => setOpenScheduleFor(null)}
+          subtitle={`ใช้ร่วมกันทั้ง ${zones.length} โซน`}
+          schedule={schedule}
+          onSave={setSchedule}
+          onClose={() => setScheduleOpen(false)}
         />
       )}
 
@@ -156,22 +159,48 @@ export function ZoneListPage({ onSelectZone }: ZoneListPageProps) {
         </div>
       </div>
 
+      {/* ปั๊มน้ำ — 1 ตัว ใช้ร่วมกันทุกโซน */}
+      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+        <div className="px-5 py-4" style={{ backgroundColor: 'var(--secondary)' }}>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-base" style={{ color: 'var(--foreground)' }}>ปั๊มน้ำ</p>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>ใช้ร่วมกันทั้ง {zones.length} โซน</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full transition-all" style={{ backgroundColor: pumpDotColor, boxShadow: pumpMode !== 'off' ? `0 0 6px ${pumpDotColor}` : 'none' }} />
+              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{pumpStatusLabel}</span>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-3 flex items-center gap-3 flex-wrap border-t" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex gap-1">
+              {(['on', 'off', 'auto', 'schedule'] as PumpMode[]).map((m) => (
+                <button key={m} onClick={() => { setPumpMode(m); if (m === 'schedule') setScheduleOpen(true) }} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={modeBtnStyle(m)}>
+                  {m === 'on' ? 'เปิด' : m === 'off' ? 'ปิด' : m === 'auto' ? 'Auto' : '⏰ ตั้งเวลา'}
+                </button>
+              ))}
+            </div>
+            {pumpMode === 'schedule' && (
+              <button onClick={() => setScheduleOpen(true)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all" style={{ backgroundColor: '#6366f120', color: '#818cf8', border: '1px solid #6366f140' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                {schedule.startTime} – {schedule.endTime} · {schedule.days.map((d) => dayLabels[d]).join(' ')}
+              </button>
+            )}
+            {pumpMode === 'auto' && (
+              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>ระบบจะเปิด/ปิดปั๊มอัตโนมัติตามค่าความชื้น</span>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-6">
         {zones.map((zone) => {
           const allStatuses = zone.trees.flatMap((t) => [t.tempStatus, t.humidStatus])
           const zoneStatus = allStatuses.includes('critical') ? 'critical' : allStatuses.includes('warning') ? 'warning' : 'normal'
-          const mode = zonePumpModes[zone.id] || 'off'
-          const sched = schedules[zone.id]
-
-          const modeBtnStyle = (m: PumpMode) => ({
-            backgroundColor: mode === m ? (m === 'on' ? '#00c9a7' : m === 'off' ? '#ef4444' : m === 'auto' ? '#f59e0b' : '#6366f1') : 'var(--muted)',
-            color: mode === m ? '#fff' : 'var(--muted-foreground)',
-            opacity: mode === m ? 1 : 0.5,
-          })
-
-          const pumpDotColor = mode === 'on' ? '#00c9a7' : mode === 'auto' ? '#f59e0b' : mode === 'schedule' ? '#6366f1' : 'var(--muted-foreground)'
-          const pumpStatusLabel = mode === 'on' ? 'กำลังทำงาน' : mode === 'auto' ? 'อัตโนมัติ' : mode === 'schedule' ? 'ตั้งเวลาแล้ว' : 'หยุดทำงาน'
-
           return (
             <div key={zone.id} className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
               <div className="px-5 py-4" style={{ backgroundColor: 'var(--secondary)', borderBottom: '1px solid var(--border)' }}>
@@ -188,29 +217,6 @@ export function ZoneListPage({ onSelectZone }: ZoneListPageProps) {
                   <button onClick={() => onSelectZone(zone.id)} className="text-xs px-3 py-1.5 rounded-lg transition-all shrink-0" style={{ color: 'var(--primary)', border: '1px solid var(--primary)' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary-foreground)' }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--primary)' }}>ดูกราฟ</button>
                 </div>
 
-                <div className="mt-3 pt-3 flex items-center gap-3 flex-wrap border-t" style={{ borderColor: 'var(--border)' }}>
-                  <div className="flex items-center gap-2 mr-1">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted-foreground)' }}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>
-                    <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>ปั๊มน้ำ</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full transition-all" style={{ backgroundColor: pumpDotColor, boxShadow: mode !== 'off' ? `0 0 6px ${pumpDotColor}` : 'none' }} />
-                      <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{pumpStatusLabel}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    {(['on', 'off', 'auto', 'schedule'] as PumpMode[]).map((m) => (
-                      <button key={m} onClick={() => { setMode(zone.id, m); if (m === 'schedule') setOpenScheduleFor(zone.id) }} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={modeBtnStyle(m)}>
-                        {m === 'on' ? 'เปิด' : m === 'off' ? 'ปิด' : m === 'auto' ? 'Auto' : '⏰ ตั้งเวลา'}
-                      </button>
-                    ))}
-                  </div>
-                  {mode === 'schedule' && sched && (
-                    <button onClick={() => setOpenScheduleFor(zone.id)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all" style={{ backgroundColor: '#6366f120', color: '#818cf8', border: '1px solid #6366f140' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                      {sched.startTime} – {sched.endTime} · {sched.days.map((d) => dayLabels[d]).join(' ')}
-                    </button>
-                  )}
-                </div>
               </div>
 
               <div className="p-4 grid gap-3" style={{ backgroundColor: 'var(--card)', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>

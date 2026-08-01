@@ -1,34 +1,25 @@
-import { useState } from 'react'
-
-interface LoginRecord {
-  id: number
-  user: string
-  email: string
-  action: 'login' | 'logout'
-  status: 'success' | 'failed'
-  ip: string
-  device: string
-  timestamp: string
-}
-
-const mockHistory: LoginRecord[] = [
-  { id: 1, user: 'Admin', email: 'admin@sensorhub.io', action: 'login', status: 'success', ip: '192.168.1.100', device: 'Chrome / Windows', timestamp: '2026-07-13 09:24:11' },
-  { id: 2, user: 'Operator A', email: 'operator.a@sensorhub.io', action: 'login', status: 'success', ip: '192.168.1.102', device: 'Safari / iPhone', timestamp: '2026-07-13 08:55:03' },
-  { id: 3, user: 'Admin', email: 'admin@sensorhub.io', action: 'logout', status: 'success', ip: '192.168.1.100', device: 'Chrome / Windows', timestamp: '2026-07-12 18:30:45' },
-  { id: 4, user: 'Unknown', email: '—', action: 'login', status: 'failed', ip: '203.0.113.45', device: 'Unknown', timestamp: '2026-07-12 17:12:08' },
-  { id: 5, user: 'Operator B', email: 'operator.b@sensorhub.io', action: 'login', status: 'success', ip: '192.168.1.105', device: 'Firefox / Mac', timestamp: '2026-07-12 13:40:22' },
-  { id: 6, user: 'Operator A', email: 'operator.a@sensorhub.io', action: 'logout', status: 'success', ip: '192.168.1.102', device: 'Safari / iPhone', timestamp: '2026-07-12 12:00:00' },
-  { id: 7, user: 'Admin', email: 'admin@sensorhub.io', action: 'login', status: 'success', ip: '192.168.1.100', device: 'Chrome / Windows', timestamp: '2026-07-12 08:01:55' },
-  { id: 8, user: 'Unknown', email: '—', action: 'login', status: 'failed', ip: '198.51.100.22', device: 'Unknown', timestamp: '2026-07-11 23:47:30' },
-  { id: 9, user: 'Operator B', email: 'operator.b@sensorhub.io', action: 'logout', status: 'success', ip: '192.168.1.105', device: 'Firefox / Mac', timestamp: '2026-07-11 17:25:14' },
-  { id: 10, user: 'Admin', email: 'admin@sensorhub.io', action: 'login', status: 'success', ip: '192.168.1.100', device: 'Chrome / Windows', timestamp: '2026-07-11 09:10:00' },
-]
+import { useEffect, useState } from 'react'
+import { ApiError, fetchLoginHistory, type LoginRecord } from '../api'
 
 export function HistoryPage() {
   const [filter, setFilter] = useState<'all' | 'login' | 'logout'>('all')
   const [search, setSearch] = useState('')
+  const [records, setRecords] = useState<LoginRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const filtered = mockHistory.filter((r) => {
+  useEffect(() => {
+    let active = true
+    fetchLoginHistory()
+      .then((rows) => { if (active) setRecords(rows) })
+      .catch((err) => {
+        if (active) setError(err instanceof ApiError ? err.message : 'โหลดข้อมูลไม่สำเร็จ')
+      })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  const filtered = records.filter((r) => {
     const matchFilter =
       filter === 'all' ? true
       : r.action === filter
@@ -142,8 +133,8 @@ export function HistoryPage() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  ไม่พบข้อมูล
+                <td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: error ? '#ef4444' : 'var(--muted-foreground)' }}>
+                  {loading ? 'กำลังโหลดข้อมูล...' : error ? error : 'ไม่พบข้อมูล'}
                 </td>
               </tr>
             )}

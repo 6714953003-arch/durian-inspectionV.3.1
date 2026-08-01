@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { ApiError, fetchThresholds, saveThresholds } from '../api'
 import { getSavedTheme, saveTheme, type ThemeMode } from '../theme'
 
-type Language = 'th' | 'en'
 type RefreshRate = '3' | '5' | '10' | '30'
 
 interface SettingsPageProps {
@@ -10,7 +10,6 @@ interface SettingsPageProps {
 
 export function SettingsPage({ onLogout }: SettingsPageProps) {
   const [themeMode, setThemeMode] = useState<ThemeMode>(getSavedTheme)
-  const [language, setLanguage] = useState<Language>('th')
   const [refreshRate, setRefreshRate] = useState<RefreshRate>('5')
   const [alertSound, setAlertSound] = useState(true)
   const [emailAlert, setEmailAlert] = useState(true)
@@ -19,11 +18,57 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
   const [humidMin, setHumidMin] = useState('60')
   const [humidMax, setHumidMax] = useState('80')
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  const handleSave = () => {
+  // โหลดค่าเกณฑ์จริงจากฐานข้อมูลตอนเปิดหน้า
+  useEffect(() => {
+    let active = true
+    fetchThresholds()
+      .then((rows) => {
+        if (!active) return
+        const temp = rows.find((r) => r.parameter === 'temperature')
+        const humid = rows.find((r) => r.parameter === 'humidity')
+        if (temp) { setTempMin(String(temp.min_value)); setTempMax(String(temp.max_value)) }
+        if (humid) { setHumidMin(String(humid.min_value)); setHumidMax(String(humid.max_value)) }
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof ApiError ? err.message : 'โหลดค่าเกณฑ์ไม่สำเร็จ')
+      })
+    return () => { active = false }
+  }, [])
+
+  const handleSave = async () => {
+    setError('')
+
+    const nums = [tempMin, tempMax, humidMin, humidMax].map(Number)
+    if (nums.some((n) => Number.isNaN(n))) {
+      setError('กรุณากรอกค่าเกณฑ์เป็นตัวเลข')
+      return
+    }
+    if (Number(tempMin) >= Number(tempMax)) {
+      setError('อุณหภูมิต่ำสุดต้องน้อยกว่าสูงสุด')
+      return
+    }
+    if (Number(humidMin) >= Number(humidMax)) {
+      setError('ความชื้นต่ำสุดต้องน้อยกว่าสูงสุด')
+      return
+    }
+
     saveTheme(themeMode)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setSaving(true)
+    try {
+      await saveThresholds([
+        { parameter: 'temperature', min_value: Number(tempMin), max_value: Number(tempMax) },
+        { parameter: 'humidity', min_value: Number(humidMin), max_value: Number(humidMax) },
+      ])
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'บันทึกไม่สำเร็จ')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -34,7 +79,7 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
       </div>
 
       {/* Theme */}
-      <Section title="การแสดงผล" subtitle="ธีมและภาษา">
+      <Section title="การแสดงผล" subtitle="ธีมของอินเตอร์เฟส">
         <SettingRow label="โหมดสี" desc="เลือกธีมการแสดงผล">
           <div className="flex gap-3">
             {([
@@ -54,28 +99,6 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
                 <span className="text-2xl mb-1">{opt.emoji}</span>
                 <span className="font-semibold text-sm">{opt.label}</span>
                 <span className="text-xs mt-0.5 opacity-70">{opt.desc}</span>
-              </button>
-            ))}
-          </div>
-        </SettingRow>
-
-        <SettingRow label="ภาษา" desc="ภาษาของอินเตอร์เฟส">
-          <div className="flex gap-2">
-            {([
-              { value: 'th' as Language, label: '🇹🇭 ภาษาไทย' },
-              { value: 'en' as Language, label: '🇬🇧 English' },
-            ]).map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setLanguage(opt.value)}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: language === opt.value ? 'var(--primary)' : 'var(--secondary)',
-                  color: language === opt.value ? 'var(--primary-foreground)' : 'var(--foreground)',
-                  border: `1px solid ${language === opt.value ? 'var(--primary)' : 'var(--border)'}`,
-                }}
-              >
-                {opt.label}
               </button>
             ))}
           </div>
@@ -153,13 +176,17 @@ export function SettingsPage({ onLogout }: SettingsPageProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={handleSave}
+          disabled={saving}
           className="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all"
-          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', opacity: saving ? 0.6 : 1 }}
         >
-          บันทึกการตั้งค่า
+          {saving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
         </button>
         {saved && (
           <span className="text-sm" style={{ color: '#00c9a7' }}>✓ บันทึกแล้ว</span>
+        )}
+        {error && (
+          <span className="text-sm" style={{ color: '#ef4444' }}>{error}</span>
         )}
       </div>
 
