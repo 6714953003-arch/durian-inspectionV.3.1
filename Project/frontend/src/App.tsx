@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { clearSession, hasSession } from './api'
+import { hasSession, logout as apiLogout } from './api'
 import { Sidebar } from './components/Sidebar'
 import { Topbar } from './components/Topbar'
 import { LoginPage } from './pages/LoginPage'
@@ -20,8 +20,8 @@ export default function App() {
     return <LoginPage onLogin={() => setIsLoggedIn(true)} />
   }
 
-  const handleLogout = () => {
-    clearSession()
+  const handleLogout = async () => {
+    await apiLogout()
     setIsLoggedIn(false)
   }
 

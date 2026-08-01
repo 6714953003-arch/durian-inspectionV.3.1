@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ApiError, fetchLoginHistory, type LoginRecord } from '../api'
+import { ApiError, exportLoginHistory, fetchLoginHistory, type LoginRecord } from '../api'
 
 export function HistoryPage() {
   const [filter, setFilter] = useState<'all' | 'login' | 'logout'>('all')
@@ -7,6 +7,19 @@ export function HistoryPage() {
   const [records, setRecords] = useState<LoginRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setError('')
+    setExporting(true)
+    try {
+      await exportLoginHistory()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'ดาวน์โหลดไม่สำเร็จ')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -35,15 +48,17 @@ export function HistoryPage() {
           <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>บันทึกการเข้า-ออกระบบ</p>
         </div>
         <button
+          onClick={handleExport}
+          disabled={exporting}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          style={{ backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', opacity: exporting ? 0.6 : 1 }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="7 10 12 15 17 10" />
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          Export
+          {exporting ? 'กำลังดาวน์โหลด...' : 'Export'}
         </button>
       </div>
 

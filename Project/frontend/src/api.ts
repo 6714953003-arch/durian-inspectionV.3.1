@@ -135,3 +135,36 @@ export async function saveThresholds(items: ThresholdItem[]): Promise<void> {
     throw new ApiError(`บันทึกค่าเกณฑ์ไม่สำเร็จ (รหัส ${res.status})`)
   }
 }
+
+/** แจ้ง backend ว่าออกจากระบบ เพื่อบันทึกลงประวัติ แล้วล้าง token */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', headers: authHeaders() })
+  } catch {
+    // ต่อ backend ไม่ได้ก็ยังต้องออกจากระบบฝั่งเราให้สำเร็จ
+  }
+  clearSession()
+}
+
+/** ดาวน์โหลดประวัติเป็นไฟล์ CSV */
+export async function exportLoginHistory(): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/history/logins/export`, { headers: authHeaders() })
+  } catch {
+    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า backend ทำงานอยู่หรือไม่')
+  }
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiError('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    throw new ApiError(`ดาวน์โหลดไม่สำเร็จ (รหัส ${res.status})`)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `login-history-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
